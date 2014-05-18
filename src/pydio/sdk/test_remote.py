@@ -68,20 +68,23 @@ class RemoteSdkLocalTests(unittest.TestCase):
             with self.assertRaises(error):
                 assert not self.sdk.changes(555)
 
-# def stat(self, path, with_hash=False):
-#         path = self.remote_folder + path;
-#         action = '/stat_hash' if with_hash else '/stat'
-#         try:
-#             url = self.url + action + urllib.pathname2url(path.encode('utf-8'))
-#             resp = requests.get(url=url, auth=self.auth)
-#             data = json.loads(resp.content)
-#             if not data:
-#                 return False
-#             if len(data) > 0 and 'size' in data:
-#                 return data
-#             else:
-#                 return False
-#         except ValueError:
-#             return False
-#         except:
-#             return False
+    @mock.patch.object(requests, 'post')
+    def test_bulk_stat(self, mock_post):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_post.return_value = response
+        result_string = ''.join(['{"patch1": ', response.content, '}'])
+        result = json.loads(result_string)
+
+        assert self.sdk.bulk_stat(['patch1']) == result
+
+    @mock.patch.object(json, 'loads')
+    @mock.patch.object(requests, 'post')
+    def test_bulk_stat_exception_thrown(self, mock_post, mock_loads):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_post.return_value = response
+        mock_loads.side_effect = ValueError
+
+        with self.assertRaises(Exception):
+            self.sdk.bulk_stat(['patch1'])
