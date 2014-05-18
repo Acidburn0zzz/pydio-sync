@@ -19,7 +19,7 @@ class RemoteSdkLocalTests(unittest.TestCase):
         response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
         mock_get.return_value = response
 
-        self.sdk.changes(555)
+        assert self.sdk.changes(555) == json.loads(response.content)
         assert mock_get.call_args == mock.call(
             url='url/api/basepath/changes/555?filter=ws_id',
             auth=('user_id', None)
@@ -57,7 +57,14 @@ class RemoteSdkLocalTests(unittest.TestCase):
         for data in test_data:
             response.content = data['content']
             mock_get.return_value = response
-            assert self.sdk.stat('/test') == data['result']
+            assert self.sdk.stat('/path') == data['result']
+
+        assert mock_get.call_args_list[0] == mock_get.call_args_list[1]
+        assert mock_get.call_args_list[1] == mock_get.call_args_list[2]
+        assert mock_get.call_args_list[2] == mock.call(
+            url='url/api/basepath/statws_id/path',
+            auth=('user_id', None)
+        )
 
     @mock.patch.object(requests, 'get')
     def test_stat_exception_thrown(self, mock_get):
@@ -73,10 +80,15 @@ class RemoteSdkLocalTests(unittest.TestCase):
         response = mock.Mock(spec=Response)
         response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
         mock_post.return_value = response
-        result_string = ''.join(['{"patch1": ', response.content, '}'])
+        result_string = ''.join(['{"/path1": ', response.content, '}'])
         result = json.loads(result_string)
 
-        assert self.sdk.bulk_stat(['patch1']) == result
+        assert self.sdk.bulk_stat(['/path1']) == result
+        assert mock_post.call_args == mock.call(
+            'url/api/basepath/statws_id/path1',
+            data={'nodes[]': ['ws_id/path1']},
+            auth=('user_id', None)
+        )
 
     @mock.patch.object(json, 'loads')
     @mock.patch.object(requests, 'post')
@@ -87,4 +99,64 @@ class RemoteSdkLocalTests(unittest.TestCase):
         mock_loads.side_effect = ValueError
 
         with self.assertRaises(Exception):
-            self.sdk.bulk_stat(['patch1'])
+            self.sdk.bulk_stat(['/path'])
+
+    @mock.patch.object(requests, 'get')
+    def test_mkdir(self, mock_get):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_get.return_value = response
+
+        assert self.sdk.mkdir('/path') == response.content
+        assert mock_get.call_args == mock.call(
+            url='url/api/basepath/mkdirws_id/path',
+            auth=('user_id', None)
+        )
+
+    @mock.patch.object(requests, 'get')
+    def test_mkfile(self, mock_get):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_get.return_value = response
+
+        assert self.sdk.mkfile('/path') == response.content
+        assert mock_get.call_args == mock.call(
+            url='url/api/basepath/mkfilews_id/path',
+            auth=('user_id', None)
+        )
+
+    @mock.patch.object(requests, 'post')
+    def test_rename(self, mock_post):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_post.return_value = response
+
+        called_with_arguments = [
+            mock.call(
+                url='url/api/basepath/rename',
+                data={'dest': 'ws_id/target', 'file': 'ws_id/source'},
+                auth=('user_id', None)),
+            mock.call(
+                url='url/api/basepath/rename',
+                data={'dest': 'ws_id/test', 'file': 'ws_id/test'},
+                auth=('user_id', None))
+        ]
+
+        assert self.sdk.rename('/source', '/target') == response.content
+        assert self.sdk.rename('/test', '/test') == response.content
+        assert mock_post.call_args_list == called_with_arguments
+
+    @mock.patch.object(requests, 'get')
+    def test_delete(self, mock_get):
+        response = mock.Mock(spec=Response)
+        response.content = '["foo", {"bar":["baz", null, 1.0, 2]}]'
+        mock_get.return_value = response
+
+        assert self.sdk.delete('/path') == response.content
+        assert mock_get.call_args == mock.call(
+            url='url/api/basepath/deletews_id/path',
+            auth=('user_id', None)
+        )
+
+if __name__ == '__main__':
+    unittest.main()
